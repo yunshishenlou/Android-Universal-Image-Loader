@@ -15,6 +15,7 @@
  *******************************************************************************/
 package com.nostra13.universalimageloader.core;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import android.widget.ImageView;
@@ -36,7 +37,7 @@ final class ImageLoadingInfo {
 
 	final String uri;
 	final String memoryCacheKey;
-	final ImageView imageView;
+	final WeakReference<ImageView> imageViewWeakRef;
 	final ImageSize targetSize;
 	final DisplayImageOptions options;
 	final ImageLoadingListener listener;
@@ -44,7 +45,7 @@ final class ImageLoadingInfo {
 
 	public ImageLoadingInfo(String uri, ImageView imageView, ImageSize targetSize, String memoryCacheKey, DisplayImageOptions options, ImageLoadingListener listener, ReentrantLock loadFromUriLock) {
 		this.uri = uri;
-		this.imageView = imageView;
+		this.imageViewWeakRef = new WeakReference<ImageView>(imageView);
 		this.targetSize = targetSize;
 		this.options = options;
 		this.listener = listener;

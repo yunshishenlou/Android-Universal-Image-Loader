@@ -15,6 +15,8 @@
  *******************************************************************************/
 package com.nostra13.universalimageloader.core;
 
+import java.lang.ref.WeakReference;
+
 import android.graphics.Bitmap;
 import android.widget.ImageView;
 
@@ -38,7 +40,7 @@ final class DisplayBitmapTask implements Runnable {
 
 	private final Bitmap bitmap;
 	private final String imageUri;
-	private final ImageView imageView;
+	private final WeakReference<ImageView> imageViewWeakRef;
 	private final String memoryCacheKey;
 	private final BitmapDisplayer displayer;
 	private final ImageLoadingListener listener;
@@ -50,7 +52,7 @@ final class DisplayBitmapTask implements Runnable {
 	public DisplayBitmapTask(Bitmap bitmap, ImageLoadingInfo imageLoadingInfo, ImageLoaderEngine engine, LoadedFrom loadedFrom) {
 		this.bitmap = bitmap;
 		imageUri = imageLoadingInfo.uri;
-		imageView = imageLoadingInfo.imageView;
+		imageViewWeakRef = imageLoadingInfo.imageViewWeakRef;
 		memoryCacheKey = imageLoadingInfo.memoryCacheKey;
 		displayer = imageLoadingInfo.options.getDisplayer();
 		listener = imageLoadingInfo.listener;
@@ -61,18 +63,18 @@ final class DisplayBitmapTask implements Runnable {
 	public void run() {
 		if (isViewWasReused()) {
 			if (loggingEnabled) L.i(LOG_TASK_CANCELLED, memoryCacheKey);
-			listener.onLoadingCancelled(imageUri, imageView);
+			listener.onLoadingCancelled(imageUri, imageViewWeakRef.get());
 		} else {
 			if (loggingEnabled) L.i(LOG_DISPLAY_IMAGE_IN_IMAGEVIEW, loadedFrom, memoryCacheKey);
-			Bitmap displayedBitmap = displayer.display(bitmap, imageView, loadedFrom);
-			listener.onLoadingComplete(imageUri, imageView, displayedBitmap);
-			engine.cancelDisplayTaskFor(imageView);
+			Bitmap displayedBitmap = displayer.display(bitmap, imageViewWeakRef.get(), loadedFrom);
+			listener.onLoadingComplete(imageUri, imageViewWeakRef.get(), displayedBitmap);
+			engine.cancelDisplayTaskFor(imageViewWeakRef.get());
 		}
 	}
 
 	/** Checks whether memory cache key (image URI) for current ImageView is actual */
 	private boolean isViewWasReused() {
-		String currentCacheKey = engine.getLoadingUriForView(imageView);
+		String currentCacheKey = engine.getLoadingUriForView(imageViewWeakRef.get());
 		return !memoryCacheKey.equals(currentCacheKey);
 	}
 

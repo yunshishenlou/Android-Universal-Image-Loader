@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -87,7 +88,7 @@ final class LoadAndDisplayImageTask implements Runnable {
 	private final boolean loggingEnabled;
 	final String uri;
 	private final String memoryCacheKey;
-	final ImageView imageView;
+	final WeakReference<ImageView> imageViewWeakRef;
 	private final ImageSize targetSize;
 	final DisplayImageOptions options;
 	final ImageLoadingListener listener;
@@ -107,7 +108,7 @@ final class LoadAndDisplayImageTask implements Runnable {
 		loggingEnabled = configuration.loggingEnabled;
 		uri = imageLoadingInfo.uri;
 		memoryCacheKey = imageLoadingInfo.memoryCacheKey;
-		imageView = imageLoadingInfo.imageView;
+		imageViewWeakRef = imageLoadingInfo.imageViewWeakRef;
 		targetSize = imageLoadingInfo.targetSize;
 		options = imageLoadingInfo.options;
 		listener = imageLoadingInfo.listener;
@@ -213,7 +214,7 @@ final class LoadAndDisplayImageTask implements Runnable {
 	 * moment and fire {@link ImageLoadingListener#onLoadingCancelled()} event if it doesn't.
 	 */
 	private boolean checkTaskIsNotActual() {
-		String currentCacheKey = engine.getLoadingUriForView(imageView);
+		String currentCacheKey = engine.getLoadingUriForView(imageViewWeakRef.get());
 		// Check whether memory cache key (image URI) for current ImageView is actual. 
 		// If ImageView is reused for another task then current task should be cancelled.
 		boolean imageViewWasReused = !memoryCacheKey.equals(currentCacheKey);
@@ -221,7 +222,7 @@ final class LoadAndDisplayImageTask implements Runnable {
 			handler.post(new Runnable() {
 				@Override
 				public void run() {
-					listener.onLoadingCancelled(uri, imageView);
+					listener.onLoadingCancelled(uri, imageViewWeakRef.get());
 				}
 			});
 			log(LOG_TASK_CANCELLED);
@@ -292,7 +293,7 @@ final class LoadAndDisplayImageTask implements Runnable {
 	}
 
 	private Bitmap decodeImage(String imageUri) throws IOException {
-		ViewScaleType viewScaleType = ViewScaleType.fromImageView(imageView);
+		ViewScaleType viewScaleType = ViewScaleType.fromImageView(imageViewWeakRef.get());
 		ImageDecodingInfo decodingInfo = new ImageDecodingInfo(memoryCacheKey, imageUri, targetSize, viewScaleType, getDownloader(), options);
 		return decoder.decode(decodingInfo);
 	}
@@ -363,9 +364,9 @@ final class LoadAndDisplayImageTask implements Runnable {
 				@Override
 				public void run() {
 					if (options.shouldShowImageOnFail()) {
-						imageView.setImageResource(options.getImageOnFail());
+					    imageViewWeakRef.get().setImageResource(options.getImageOnFail());
 					}
-					listener.onLoadingFailed(uri, imageView, new FailReason(failType, failCause));
+					listener.onLoadingFailed(uri, imageViewWeakRef.get(), new FailReason(failType, failCause));
 				}
 			});
 		}
